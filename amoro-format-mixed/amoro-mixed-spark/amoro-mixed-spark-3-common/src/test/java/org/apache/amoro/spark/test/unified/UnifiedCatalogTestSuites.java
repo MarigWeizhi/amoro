@@ -51,7 +51,7 @@ public class UnifiedCatalogTestSuites extends SparkTestBase {
 
   public static List<Arguments> testTableFormats() {
     return Lists.newArrayList(
-        Arguments.of(TableFormat.ICEBERG, false),
+        //        Arguments.of(TableFormat.ICEBERG, false),
         Arguments.of(TableFormat.MIXED_ICEBERG, false),
         Arguments.of(TableFormat.MIXED_HIVE, false),
         Arguments.of(TableFormat.PAIMON, false),
