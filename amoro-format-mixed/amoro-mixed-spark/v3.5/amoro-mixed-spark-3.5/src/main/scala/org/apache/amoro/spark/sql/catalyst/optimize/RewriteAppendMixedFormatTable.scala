@@ -20,28 +20,27 @@ package org.apache.amoro.spark.sql.catalyst.optimize
 
 import java.util
 
+import org.apache.amoro.spark.sql.catalyst.plans._
+import org.apache.amoro.spark.sql.utils.RowDeltaUtils.{OPERATION_COLUMN, UPDATE_OPERATION}
+import org.apache.amoro.spark.sql.utils.{ProjectingInternalRow, WriteQueryProjections}
+import org.apache.amoro.spark.table.MixedSparkTable
+import org.apache.amoro.spark.writer.WriteMode
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.amoro.catalyst.MixedFormatSpark33Helper
-import org.apache.spark.sql.catalyst.expressions.{Alias, And, Attribute, AttributeReference, Cast, EqualTo, Expression, GreaterThan, Literal}
+import org.apache.spark.sql.amoro.catalyst.MixedFormatSpark35Helper
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Complete, Count}
+import org.apache.spark.sql.catalyst.expressions.{Alias, And, Attribute, Cast, EqualTo, Expression, GreaterThan, Literal}
 import org.apache.spark.sql.catalyst.plans.RightOuter
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.datasources.v2.DataSourceV2Relation
 import org.apache.spark.sql.types.LongType
 
-import org.apache.amoro.spark.sql.catalyst.plans._
-import org.apache.amoro.spark.sql.utils.{ProjectingInternalRow, WriteQueryProjections}
-import org.apache.amoro.spark.sql.utils.RowDeltaUtils.{OPERATION_COLUMN, UPDATE_OPERATION}
-import org.apache.amoro.spark.table.MixedSparkTable
-import org.apache.amoro.spark.writer.WriteMode
-
 case class RewriteAppendMixedFormatTable(spark: SparkSession) extends Rule[LogicalPlan] {
 
   import org.apache.amoro.spark.sql.MixedFormatExtensionUtils._
 
   override def apply(plan: LogicalPlan): LogicalPlan = plan transform {
-    case AppendData(r: DataSourceV2Relation, query, writeOptions, _, _)
+    case AppendData(r: DataSourceV2Relation, query, writeOptions, _, _, _)
         if isMixedFormatRelation(r) && isUpsert(r) =>
       val upsertQuery = rewriteAppendAsUpsertQuery(r, query)
       val insertQuery = Project(
@@ -52,7 +51,7 @@ case class RewriteAppendMixedFormatTable(spark: SparkSession) extends Rule[Logic
       val projections = buildInsertProjections(insertQuery, insertAttribute, isUpsert = true)
       val upsertOptions = writeOptions + (WriteMode.WRITE_MODE_KEY -> WriteMode.UPSERT.mode)
       val writeBuilder =
-        MixedFormatSpark33Helper.newWriteBuilder(r.table, query.schema, upsertOptions)
+        MixedFormatSpark35Helper.newWriteBuilder(r.table, query.schema, upsertOptions)
       val write = writeBuilder.build()
       MixedFormatRowLevelWrite(r, insertQuery, upsertOptions, projections, Some(write))
   }

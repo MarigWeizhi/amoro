@@ -18,17 +18,12 @@
 
 package org.apache.amoro.spark.sql.catalyst.analysis
 
+import org.apache.amoro.spark.sql.catalyst.plans.MergeIntoMixedFormatTable
 import org.apache.spark.sql.AnalysisException
+import org.apache.spark.sql.amoro.catalyst.AssignmentHelper
 import org.apache.spark.sql.catalyst.analysis.MixedFormatAssignmentAlignmentSupport
-import org.apache.spark.sql.catalyst.expressions.AssignmentUtils
-import org.apache.spark.sql.catalyst.plans.logical.Assignment
-import org.apache.spark.sql.catalyst.plans.logical.DeleteAction
-import org.apache.spark.sql.catalyst.plans.logical.InsertAction
-import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
-import org.apache.spark.sql.catalyst.plans.logical.UpdateAction
+import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.catalyst.rules.Rule
-
-import org.apache.amoro.spark.sql.catalyst.plans.{MergeIntoMixedFormatTable, UnresolvedMergeIntoMixedFormatTable}
 
 /**
  * A rule that aligns assignments in UPDATE and MERGE operations.
@@ -48,19 +43,19 @@ object MixedFormatAlignRowLevelCommandAssignments
         case _ =>
           throw new AnalysisException(
             "Matched actions can only contain UPDATE or DELETE",
-            Array.empty[String])
+            Map.empty[String,String])
       }
 
       val alignedNotMatchedActions = m.notMatchedActions.map {
         case i @ InsertAction(_, assignments) =>
           // check no nested columns are present
-          val refs = assignments.map(_.key).map(AssignmentUtils.toAssignmentRef)
+          val refs = assignments.map(_.key).map(AssignmentHelper.toAssignmentRef)
           refs.foreach { ref =>
             if (ref.size > 1) {
               throw new AnalysisException(
                 "Nested fields are not supported inside INSERT clauses of MERGE operations: " +
                   s"${ref.mkString("`", "`.`", "`")}",
-                Array.empty[String])
+                Map.empty[String,String])
             }
           }
 
@@ -74,7 +69,7 @@ object MixedFormatAlignRowLevelCommandAssignments
           if (duplicateColNames.nonEmpty) {
             throw new AnalysisException(
               s"Duplicate column names inside INSERT clause: ${duplicateColNames.mkString(", ")}",
-              Array.empty[String])
+              Map.empty[String,String])
           }
 
           // reorder assignments by the target table column order
@@ -84,7 +79,7 @@ object MixedFormatAlignRowLevelCommandAssignments
         case _ =>
           throw new AnalysisException(
             "Not matched actions can only contain INSERT",
-            Array.empty[String])
+            Map.empty[String,String])
       }
 
       m.copy(matchedActions = alignedMatchedActions, notMatchedActions = alignedNotMatchedActions)
@@ -106,12 +101,12 @@ object MixedFormatAlignRowLevelCommandAssignments
           s"Cannot find column '${targetAttr.name}' of the target table among " +
             s"the INSERT columns: ${assignmentMap.keys.mkString(", ")}. " +
             "INSERT clauses must provide values for all columns of the target table.",
-          Array.empty[String])
+          Map.empty[String,String])
       }
 
       val key = assignment.get.key
       val value = castIfNeeded(targetAttr, assignment.get.value, resolver)
-      AssignmentUtils.handleCharVarcharLimits(Assignment(key, value))
+      AssignmentHelper.handleCharVarcharLimits(Assignment(key, value))
     }
   }
 }

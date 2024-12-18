@@ -22,6 +22,7 @@ import org.apache.spark.sql.AnalysisException
 import org.apache.spark.sql.catalyst.SQLConfHelper
 import org.apache.spark.sql.catalyst.expressions.{Alias, AttributeReference, Expression, ExtractValue, GetStructField}
 import org.apache.spark.sql.catalyst.plans.logical.{Assignment, LogicalPlan}
+import org.apache.spark.sql.catalyst.util.CharVarcharUtils
 import org.apache.spark.sql.types.DataType
 
 object AssignmentHelper extends SQLConfHelper {
@@ -58,5 +59,27 @@ object AssignmentHelper extends SQLConfHelper {
       throw new AnalysisException(s"Updating nested fields is only supported for structs: $other")
     case other =>
       throw new AnalysisException(s"Cannot convert to a reference, unsupported expression: $other")
+  }
+
+  def handleCharVarcharLimits(assignment: Assignment): Assignment = {
+    val key = assignment.key
+    val value = assignment.value
+
+    val rawKeyType = key.transform {
+      case attr: AttributeReference =>
+        CharVarcharUtils.getRawType(attr.metadata)
+          .map(attr.withDataType)
+          .getOrElse(attr)
+    }.dataType
+
+    if (CharVarcharUtils.hasCharVarchar(rawKeyType)) {
+      val newKey = key.transform {
+        case attr: AttributeReference => CharVarcharUtils.cleanAttrMetadata(attr)
+      }
+      val newValue = CharVarcharUtils.stringLengthCheck(value, rawKeyType)
+      Assignment(newKey, newValue)
+    } else {
+      assignment
+    }
   }
 }

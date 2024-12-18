@@ -22,15 +22,14 @@ import scala.collection.JavaConverters.mapAsScalaMapConverter
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 import scala.collection.mutable.ArrayBuffer
 
+import org.apache.amoro.spark.table.MixedSparkTable
+import org.apache.amoro.table.KeyedTable
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.encoders.RowEncoder
+import org.apache.spark.sql.catalyst.encoders.{ExpressionEncoder, RowEncoder}
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference}
 import org.apache.spark.sql.connector.catalog._
 import org.apache.spark.sql.execution.datasources.v2.LeafV2CommandExec
 import org.apache.spark.sql.types.{MetadataBuilder, StringType, StructField, StructType}
-
-import org.apache.amoro.spark.table.MixedSparkTable
-import org.apache.amoro.table.KeyedTable
 
 case class DescribeKeyedTableExec(
     table: Table,
@@ -58,7 +57,7 @@ case class DescribeKeyedTableExec(
     StructType(attributes.map(a => StructField(a.name, a.dataType, a.nullable, a.metadata)))
 
   private val toRow = {
-    RowEncoder(fromAttributes(outputAttrs)).resolveAndBind().createSerializer()
+    ExpressionEncoder(RowEncoder.encoderFor(fromAttributes(outputAttrs))).resolveAndBind().createSerializer()
   }
 
   private def addPrimaryColumns(

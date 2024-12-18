@@ -19,13 +19,12 @@
 package org.apache.spark.sql.amoro.parser
 
 import org.antlr.v4.runtime.ParserRuleContext
+import org.apache.amoro.spark.sql.parser.MixedFormatSqlExtendParser._
 import org.apache.spark.sql.catalyst.parser.ParseException
 import org.apache.spark.sql.catalyst.trees.Origin
 import org.apache.spark.sql.connector.catalog.CatalogV2Implicits._
 import org.apache.spark.sql.errors.QueryErrorsBase
 import org.apache.spark.sql.types.StringType
-
-import org.apache.amoro.spark.sql.parser.MixedFormatSqlExtendParser._
 
 /**
  * Object for grouping all error messages of the query parsing.
@@ -50,15 +49,15 @@ private[sql] object QueryParsingErrors extends QueryErrorsBase {
   def transformNotSupportQuantifierError(ctx: ParserRuleContext): Throwable = {
     new ParseException(
       errorClass = "UNSUPPORTED_FEATURE",
-      messageParameters = Array(s"${toSQLStmt("TRANSFORM")} does not support" +
-        s" ${toSQLStmt("DISTINCT")}/${toSQLStmt("ALL")} in inputs"),
+      messageParameters = Map("UNSUPPORTED_FEATURE" -> (s"${toSQLStmt("TRANSFORM")} does not support" +
+        s" ${toSQLStmt("DISTINCT")}/${toSQLStmt("ALL")} in inputs")),
       ctx)
   }
 
   def transformWithSerdeUnsupportedError(ctx: ParserRuleContext): Throwable = {
     new ParseException(
       errorClass = "UNSUPPORTED_FEATURE",
-      messageParameters = Array(
+      messageParameters = Map("UNSUPPORTED_FEATURE" ->
         s"${toSQLStmt("TRANSFORM")} with serde is only supported in hive mode"),
       ctx)
   }
@@ -70,54 +69,54 @@ private[sql] object QueryParsingErrors extends QueryErrorsBase {
   def lateralJoinWithNaturalJoinUnsupportedError(ctx: ParserRuleContext): Throwable = {
     new ParseException(
       errorClass = "UNSUPPORTED_FEATURE",
-      messageParameters = Array(s"${toSQLStmt("LATERAL")} join with ${toSQLStmt("NATURAL")} join."),
+      messageParameters = Map("UNSUPPORTED_FEATURE" -> s"${toSQLStmt("LATERAL")} join with ${toSQLStmt("NATURAL")} join."),
       ctx)
   }
 
   def lateralJoinWithUsingJoinUnsupportedError(ctx: ParserRuleContext): Throwable = {
     new ParseException(
       errorClass = "UNSUPPORTED_FEATURE",
-      messageParameters = Array(s"${toSQLStmt("LATERAL")} join with ${toSQLStmt("USING")} join."),
+      messageParameters = Map("UNSUPPORTED_FEATURE" -> s"${toSQLStmt("LATERAL")} join with ${toSQLStmt("USING")} join."),
       ctx)
   }
 
   def unsupportedLateralJoinTypeError(ctx: ParserRuleContext, joinType: String): Throwable = {
     new ParseException(
       errorClass = "UNSUPPORTED_FEATURE",
-      messageParameters = Array(s"${toSQLStmt("LATERAL")} join type ${toSQLStmt(joinType)}."),
+      messageParameters = Map("UNSUPPORTED_FEATURE" -> s"${toSQLStmt("LATERAL")} join type ${toSQLStmt(joinType)}."),
       ctx)
   }
 
   def invalidLateralJoinRelationError(ctx: RelationPrimaryContext): Throwable = {
     new ParseException(
       errorClass = "INVALID_SQL_SYNTAX",
-      messageParameters = Array(s"${toSQLStmt("LATERAL")} can only be used with subquery."),
+      messageParameters = Map("INVALID_SQL_SYNTAX" -> s"${toSQLStmt("LATERAL")} can only be used with subquery."),
       ctx)
   }
 
   def repetitiveWindowDefinitionError(name: String, ctx: WindowClauseContext): Throwable = {
     new ParseException(
       "INVALID_SQL_SYNTAX",
-      Array(s"The definition of window ${toSQLId(name)} is repetitive."),
+      Map("INVALID_SQL_SYNTAX" -> s"The definition of window ${toSQLId(name)} is repetitive."),
       ctx)
   }
 
   def invalidWindowReferenceError(name: String, ctx: WindowClauseContext): Throwable = {
     new ParseException(
       "INVALID_SQL_SYNTAX",
-      Array(s"Window reference ${toSQLId(name)} is not a window specification."),
+      Map("INVALID_SQL_SYNTAX" -> s"Window reference ${toSQLId(name)} is not a window specification."),
       ctx)
   }
 
   def cannotResolveWindowReferenceError(name: String, ctx: WindowClauseContext): Throwable = {
     new ParseException(
       "INVALID_SQL_SYNTAX",
-      Array(s"Cannot resolve window reference ${toSQLId(name)}."),
+      Map("INVALID_SQL_SYNTAX" -> s"Cannot resolve window reference ${toSQLId(name)}."),
       ctx)
   }
 
   def naturalCrossJoinUnsupportedError(ctx: RelationContext): Throwable = {
-    new ParseException("UNSUPPORTED_FEATURE", Array(toSQLStmt("NATURAL CROSS JOIN") + "."), ctx)
+    new ParseException("UNSUPPORTED_FEATURE", Map("UNSUPPORTED_FEATURE" -> (toSQLStmt("NATURAL CROSS JOIN") + ".")), ctx)
   }
 
   def emptyInputForTableSampleError(ctx: ParserRuleContext): Throwable = {
@@ -222,7 +221,7 @@ private[sql] object QueryParsingErrors extends QueryErrorsBase {
   }
 
   def charTypeMissingLengthError(dataType: String, ctx: PrimitiveDataTypeContext): Throwable = {
-    new ParseException("PARSE_CHAR_MISSING_LENGTH", Array(dataType, dataType), ctx)
+    new ParseException("PARSE_CHAR_MISSING_LENGTH", Map("PARSE_CHAR_MISSING_LENGTH" -> dataType), ctx)
   }
 
   def partitionTransformNotExpectedError(
@@ -235,7 +234,7 @@ private[sql] object QueryParsingErrors extends QueryErrorsBase {
   def tooManyArgumentsForTransformError(name: String, ctx: ApplyTransformContext): Throwable = {
     new ParseException(
       errorClass = "INVALID_SQL_SYNTAX",
-      messageParameters = Array(s"Too many arguments for transform ${toSQLId(name)}"),
+      messageParameters = Map("INVALID_SQL_SYNTAX" -> s"Too many arguments for transform ${toSQLId(name)}"),
       ctx)
   }
 
@@ -249,7 +248,7 @@ private[sql] object QueryParsingErrors extends QueryErrorsBase {
       msg: String): ParseException = {
     new ParseException(
       "UNSUPPORTED_FEATURE",
-      Array(s"$property is a reserved namespace property, $msg."),
+      Map("UNSUPPORTED_FEATURE" -> s"$property is a reserved namespace property, $msg."),
       ctx)
   }
 
@@ -259,7 +258,7 @@ private[sql] object QueryParsingErrors extends QueryErrorsBase {
       msg: String): ParseException = {
     new ParseException(
       "UNSUPPORTED_FEATURE",
-      Array(s"$property is a reserved table property, $msg."),
+      Map("UNSUPPORTED_FEATURE" -> s"$property is a reserved table property, $msg."),
       ctx)
   }
 
@@ -303,7 +302,7 @@ private[sql] object QueryParsingErrors extends QueryErrorsBase {
   def showFunctionsUnsupportedError(identifier: String, ctx: IdentifierContext): Throwable = {
     new ParseException(
       errorClass = "INVALID_SQL_SYNTAX",
-      messageParameters = Array(
+      messageParameters = Map("INVALID_SQL_SYNTAX" ->
         s"${toSQLStmt("SHOW")} $identifier ${toSQLStmt("FUNCTIONS")} not supported"),
       ctx)
   }
@@ -311,9 +310,9 @@ private[sql] object QueryParsingErrors extends QueryErrorsBase {
   def showFunctionsInvalidPatternError(pattern: String, ctx: ParserRuleContext): Throwable = {
     new ParseException(
       errorClass = "INVALID_SQL_SYNTAX",
-      messageParameters = Array(
-        s"Invalid pattern in ${toSQLStmt("SHOW FUNCTIONS")}: ${toSQLId(pattern)}. " +
-          s"It must be a ${toSQLType(StringType)} literal."),
+      messageParameters = Map("INVALID_SQL_SYNTAX" ->
+        (s"Invalid pattern in ${toSQLStmt("SHOW FUNCTIONS")}: ${toSQLId(pattern)}. " +
+          s"It must be a ${toSQLType(StringType)} literal.")),
       ctx)
   }
 
@@ -338,7 +337,7 @@ private[sql] object QueryParsingErrors extends QueryErrorsBase {
 
   def duplicateKeysError(key: String, ctx: ParserRuleContext): Throwable = {
     // Found duplicate keys '$key'
-    new ParseException(errorClass = "DUPLICATE_KEY", messageParameters = Array(toSQLId(key)), ctx)
+    new ParseException(errorClass = "DUPLICATE_KEY", messageParameters = Map("DUPLICATE_KEY" -> toSQLId(key)), ctx)
   }
 
   def unexpectedFomatForSetConfigurationError(ctx: ParserRuleContext): Throwable = {
@@ -358,7 +357,7 @@ private[sql] object QueryParsingErrors extends QueryErrorsBase {
     new ParseException(
       errorClass = "INVALID_PROPERTY_KEY",
       messageParameters =
-        Array(toSQLConf(keyCandidate), toSQLConf(keyCandidate), toSQLConf(valueStr)),
+        Map("keyCandidate" -> toSQLConf(keyCandidate), "valueStr" -> toSQLConf(valueStr)),
       ctx)
   }
 
@@ -369,7 +368,7 @@ private[sql] object QueryParsingErrors extends QueryErrorsBase {
     new ParseException(
       errorClass = "INVALID_PROPERTY_VALUE",
       messageParameters =
-        Array(toSQLConf(valueCandidate), toSQLConf(keyStr), toSQLConf(valueCandidate)),
+        Map("valueCandidate" -> toSQLConf(valueCandidate), "keyStr" -> toSQLConf(keyStr)),
       ctx)
   }
 
@@ -395,7 +394,7 @@ private[sql] object QueryParsingErrors extends QueryErrorsBase {
       ctx: TableValuedFunctionContext): Throwable = {
     new ParseException(
       "INVALID_SQL_SYNTAX",
-      Array("table valued function cannot specify database name ", toSQLId(name)),
+      Map("table valued function cannot specify database name " -> toSQLId(name)),
       ctx)
   }
 

@@ -26,23 +26,22 @@ import scala.util.Try
 import org.antlr.v4.runtime._
 import org.antlr.v4.runtime.atn.PredictionMode
 import org.antlr.v4.runtime.misc.{Interval, ParseCancellationException}
+import org.apache.amoro.spark.sql.catalyst.plans.UnresolvedMergeIntoMixedFormatTable
+import org.apache.amoro.spark.sql.parser._
+import org.apache.amoro.spark.table.MixedSparkTable
+import org.apache.amoro.spark.util.MixedFormatSparkUtils
 import org.apache.iceberg.spark.Spark3Util
 import org.apache.iceberg.spark.source.SparkTable
-import org.apache.spark.sql.{AnalysisException, SparkSession}
 import org.apache.spark.sql.amoro.parser.MixedFormatSqlExtendAstBuilder
-import org.apache.spark.sql.catalyst.{FunctionIdentifier, SQLConfHelper, TableIdentifier}
 import org.apache.spark.sql.catalyst.analysis.{EliminateSubqueryAliases, UnresolvedRelation}
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.parser.{ParseException, ParserInterface}
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.catalyst.trees.Origin
+import org.apache.spark.sql.catalyst.{FunctionIdentifier, SQLConfHelper, TableIdentifier}
 import org.apache.spark.sql.connector.catalog.{Table, TableCatalog}
 import org.apache.spark.sql.types.{DataType, StructType}
-
-import org.apache.amoro.spark.sql.catalyst.plans.UnresolvedMergeIntoMixedFormatTable
-import org.apache.amoro.spark.sql.parser._
-import org.apache.amoro.spark.table.MixedSparkTable
-import org.apache.amoro.spark.util.MixedFormatSparkUtils
+import org.apache.spark.sql.{AnalysisException, SparkSession}
 
 class MixedFormatSqlExtensionsParser(delegate: ParserInterface) extends ParserInterface
   with SQLConfHelper {
@@ -178,13 +177,15 @@ class MixedFormatSqlExtensionsParser(delegate: ParserInterface) extends ParserIn
           source,
           cond,
           matchedActions,
-          notMatchedActions) =>
+          notMatchedActions,
+          notMatchedBySourceActions) =>
       UnresolvedMergeIntoMixedFormatTable(
         aliasedTable,
         source,
         cond,
         matchedActions,
-        notMatchedActions)
+        notMatchedActions,
+        notMatchedBySourceActions)
 
     case DeleteFromTable(UnresolvedIcebergTable(aliasedTable), condition) =>
       DeleteFromIcebergTable(aliasedTable, Some(condition))
@@ -197,7 +198,8 @@ class MixedFormatSqlExtensionsParser(delegate: ParserInterface) extends ParserIn
           source,
           cond,
           matchedActions,
-          notMatchedActions) =>
+          notMatchedActions,
+          notMatchedBySourceActions) =>
       // cannot construct MergeIntoIcebergTable right away as MERGE operations require special resolution
       // that's why the condition and actions must be hidden from the regular resolution rules in Spark
       // see ResolveMergeIntoTableReferences for details

@@ -18,30 +18,29 @@
 
 package org.apache.amoro.spark.sql.catalyst.analysis
 
-import scala.collection.{mutable, Seq}
-
+import org.apache.amoro.spark.mixed.SparkSQLProperties
+import org.apache.amoro.spark.sql.MixedFormatExtensionUtils
+import org.apache.amoro.spark.sql.MixedFormatExtensionUtils.isMixedFormatRelation
+import org.apache.amoro.spark.sql.catalyst.plans
+import org.apache.amoro.spark.sql.catalyst.plans.{MergeIntoMixedFormatTable, MergeRows, MixedFormatRowLevelWrite}
+import org.apache.amoro.spark.sql.utils.RowDeltaUtils.{DELETE_OPERATION, INSERT_OPERATION, OPERATION_COLUMN, UPDATE_OPERATION}
+import org.apache.amoro.spark.sql.utils.{FieldReference, ProjectingInternalRow, WriteQueryProjections}
+import org.apache.amoro.spark.table.MixedSparkTable
+import org.apache.amoro.spark.writer.WriteMode
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.amoro.catalyst.{ExpressionHelper, MixedFormatSpark33Helper}
+import org.apache.spark.sql.amoro.catalyst.{ExpressionHelper, MixedFormatSpark35Helper}
 import org.apache.spark.sql.catalyst.analysis.EliminateSubqueryAliases
-import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, Expression, ExprId, IsNotNull, Literal}
 import org.apache.spark.sql.catalyst.expressions.Literal.TrueLiteral
-import org.apache.spark.sql.catalyst.plans.{Inner, RightOuter}
+import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, ExprId, Expression, IsNotNull, Literal}
 import org.apache.spark.sql.catalyst.plans.logical._
+import org.apache.spark.sql.catalyst.plans.{Inner, RightOuter}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.NamedReference
 import org.apache.spark.sql.execution.datasources.v2.{DataSourceV2Relation, DataSourceV2ScanRelation}
 import org.apache.spark.sql.types.{IntegerType, StructType}
 
-import org.apache.amoro.spark.mixed.SparkSQLProperties
-import org.apache.amoro.spark.sql.MixedFormatExtensionUtils
-import org.apache.amoro.spark.sql.MixedFormatExtensionUtils.isMixedFormatRelation
-import org.apache.amoro.spark.sql.catalyst.plans
-import org.apache.amoro.spark.sql.catalyst.plans.{MergeIntoMixedFormatTable, MergeRows, MixedFormatRowLevelWrite}
-import org.apache.amoro.spark.sql.utils.{FieldReference, ProjectingInternalRow, WriteQueryProjections}
-import org.apache.amoro.spark.sql.utils.RowDeltaUtils.{DELETE_OPERATION, INSERT_OPERATION, OPERATION_COLUMN, UPDATE_OPERATION}
-import org.apache.amoro.spark.table.MixedSparkTable
-import org.apache.amoro.spark.writer.WriteMode
+import scala.collection.{Seq, mutable}
 
 case class RewriteMixedFormatMergeIntoTable(spark: SparkSession) extends Rule[LogicalPlan] {
 
@@ -236,7 +235,7 @@ case class RewriteMixedFormatMergeIntoTable(spark: SparkSession) extends Rule[Lo
       rowIdAttrs,
       MixedFormatExtensionUtils.isKeyedTable(relation))
     val writeBuilder =
-      MixedFormatSpark33Helper.newWriteBuilder(relation.table, mergeRows.schema, options)
+      MixedFormatSpark35Helper.newWriteBuilder(relation.table, mergeRows.schema, options)
     val write = writeBuilder.build()
     MixedFormatRowLevelWrite(writeRelation, mergeRows, options, projections, Some(write))
   }

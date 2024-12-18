@@ -18,8 +18,8 @@
 
 package org.apache.amoro.spark.sql.catalyst.plans
 
-import org.apache.spark.sql.catalyst.expressions.{AssignmentUtils, Expression}
-import org.apache.spark.sql.catalyst.plans.logical.{BinaryCommand, DeleteAction, InsertAction, LogicalPlan, MergeAction, UpdateAction}
+import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.catalyst.plans.logical._
 
 /**
  * A node that hides the MERGE condition and actions from regular Spark resolution.
@@ -29,7 +29,8 @@ case class UnresolvedMergeIntoMixedFormatTable(
     sourceTable: LogicalPlan,
     mergeCondition: Expression,
     matchedActions: Seq[MergeAction],
-    notMatchedActions: Seq[MergeAction]) extends BinaryCommand {
+    notMatchedActions: Seq[MergeAction],
+    notMatchedBySourceActions: Seq[MergeAction]) extends BinaryCommand {
 
   lazy val aligned: Boolean = {
     val matchedActionsAligned = matchedActions.forall {
