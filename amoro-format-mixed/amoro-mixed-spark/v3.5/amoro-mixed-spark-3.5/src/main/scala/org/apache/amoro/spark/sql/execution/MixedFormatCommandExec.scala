@@ -18,7 +18,6 @@
 
 package org.apache.amoro.spark.sql.execution
 
-import org.apache.amoro.spark.command.{MigrateToMixedFormatCommand, MixedFormatSparkCommand}
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.encoders.{ExpressionEncoder, RowEncoder}
@@ -27,9 +26,12 @@ import org.apache.spark.sql.catalyst.util.truncatedString
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.v2.V2CommandExec
 
+import org.apache.amoro.spark.command.{MigrateToMixedFormatCommand, MixedFormatSparkCommand}
+
 abstract class MixedFormatCommandExec(command: MixedFormatSparkCommand) extends V2CommandExec {
 
-  val rowEncoder: ExpressionEncoder[Row] = ExpressionEncoder(RowEncoder.encoderFor(command.outputType())).resolveAndBind()
+  val rowEncoder: ExpressionEncoder[Row] =
+    ExpressionEncoder(RowEncoder.encoderFor(command.outputType())).resolveAndBind()
 
   override def run(): Seq[InternalRow] = {
     val rows = command.execute().toSeq

@@ -21,9 +21,10 @@ package org.apache.amoro.spark.sql.execution
 import org.apache.spark.SparkException
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
+import org.apache.spark.sql.catalyst.util.RowDeltaUtils.{DELETE_OPERATION, INSERT_OPERATION, UPDATE_OPERATION}
 import org.apache.spark.sql.connector.write.Write
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.datasources.v2.{ExtendedV2ExistingTableWriteExec, WritingSparkTask}
+import org.apache.spark.sql.execution.datasources.v2.{V2ExistingTableWriteExec, WritingSparkTask}
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
 import org.apache.amoro.spark.sql.utils.WriteQueryProjections
@@ -39,7 +40,7 @@ case class MixedFormatRowLevelWriteExec(
     writeOptions: CaseInsensitiveStringMap,
     projections: WriteQueryProjections,
     refreshCache: () => Unit,
-    write: Write) extends ExtendedV2ExistingTableWriteExec[RowLevelWriter[InternalRow]] {
+    write: Write) extends V2ExistingTableWriteExec {
 
   override protected def run(): Seq[InternalRow] = {
     val writtenRows = writeWithV2(write.toBatch)
@@ -66,20 +67,20 @@ case class DeltaWithMetadataWritingSparkTask(
   private lazy val frontRowProjection = projs.frontRowProjection.orNull
   private lazy val backRowProjection = projs.backRowProjection
 
-  override protected def writeFunc(writer: RowLevelWriter[InternalRow], row: InternalRow): Unit = {
-    val operation = row.getString(0)
+  override protected def write(writer: RowLevelWriter[InternalRow], row: InternalRow): Unit = {
+    val operation = row.getInt(0)
 
     operation match {
-      case "D" =>
+      case DELETE_OPERATION =>
         frontRowProjection.project(row)
         writer.delete(frontRowProjection)
 
-      case "U" =>
+      case UPDATE_OPERATION =>
         frontRowProjection.project(row)
         backRowProjection.project(row)
         writer.update(frontRowProjection, backRowProjection)
 
-      case "I" =>
+      case INSERT_OPERATION =>
         backRowProjection.project(row)
         writer.insert(backRowProjection)
 

@@ -20,7 +20,6 @@ package org.apache.spark.sql.execution.datasources.v2
 
 import scala.jdk.CollectionConverters._
 
-import org.apache.amoro.spark.{SparkUnifiedCatalog, SparkUnifiedSessionCatalog}
 import org.apache.iceberg.spark.{Spark3Util, SparkCatalog, SparkSessionCatalog}
 import org.apache.spark.sql.{AnalysisException, SparkSession, Strategy}
 import org.apache.spark.sql.catalyst.InternalRow
@@ -30,6 +29,8 @@ import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.catalyst.plans.logical.views.{CreateIcebergView, DropIcebergView, ResolvedV2View, ShowIcebergViews}
 import org.apache.spark.sql.connector.catalog.{Identifier, TableCatalog, ViewCatalog}
 import org.apache.spark.sql.execution.{OrderAwareCoalesceExec, SparkPlan}
+
+import org.apache.amoro.spark.{SparkUnifiedCatalog, SparkUnifiedSessionCatalog}
 
 /**
  * refer apache iceberg project 1.6.x branch
@@ -49,11 +50,28 @@ case class MixedFormatExtendedDataSourceV2Strategy(spark: SparkSession) extends 
       AddPartitionFieldExec(catalog, ident, transform, name) :: Nil
 
     case CreateOrReplaceBranch(
-    IcebergCatalogAndIdentifier(catalog, ident), branch, branchOptions, create, replace, ifNotExists) =>
-      CreateOrReplaceBranchExec(catalog, ident, branch, branchOptions, create, replace, ifNotExists) :: Nil
+          IcebergCatalogAndIdentifier(catalog, ident),
+          branch,
+          branchOptions,
+          create,
+          replace,
+          ifNotExists) =>
+      CreateOrReplaceBranchExec(
+        catalog,
+        ident,
+        branch,
+        branchOptions,
+        create,
+        replace,
+        ifNotExists) :: Nil
 
     case CreateOrReplaceTag(
-    IcebergCatalogAndIdentifier(catalog, ident), tag, tagOptions, create, replace, ifNotExists) =>
+          IcebergCatalogAndIdentifier(catalog, ident),
+          tag,
+          tagOptions,
+          create,
+          replace,
+          ifNotExists) =>
       CreateOrReplaceTagExec(catalog, ident, tag, tagOptions, create, replace, ifNotExists) :: Nil
 
     case DropBranch(IcebergCatalogAndIdentifier(catalog, ident), branch, ifExists) =>
@@ -65,7 +83,11 @@ case class MixedFormatExtendedDataSourceV2Strategy(spark: SparkSession) extends 
     case DropPartitionField(IcebergCatalogAndIdentifier(catalog, ident), transform) =>
       DropPartitionFieldExec(catalog, ident, transform) :: Nil
 
-    case ReplacePartitionField(IcebergCatalogAndIdentifier(catalog, ident), transformFrom, transformTo, name) =>
+    case ReplacePartitionField(
+          IcebergCatalogAndIdentifier(catalog, ident),
+          transformFrom,
+          transformTo,
+          name) =>
       ReplacePartitionFieldExec(catalog, ident, transformFrom, transformTo, name) :: Nil
 
     case SetIdentifierFields(IcebergCatalogAndIdentifier(catalog, ident), fields) =>
@@ -75,13 +97,15 @@ case class MixedFormatExtendedDataSourceV2Strategy(spark: SparkSession) extends 
       DropIdentifierFieldsExec(catalog, ident, fields) :: Nil
 
     case SetWriteDistributionAndOrdering(
-    IcebergCatalogAndIdentifier(catalog, ident), distributionMode, ordering) =>
+          IcebergCatalogAndIdentifier(catalog, ident),
+          distributionMode,
+          ordering) =>
       SetWriteDistributionAndOrderingExec(catalog, ident, distributionMode, ordering) :: Nil
 
     case OrderAwareCoalesce(numPartitions, coalescer, child) =>
       OrderAwareCoalesceExec(numPartitions, coalescer, planLater(child)) :: Nil
 
-    case RenameTable(ResolvedV2View(oldCatalog: ViewCatalog, oldIdent), newName, isView@true) =>
+    case RenameTable(ResolvedV2View(oldCatalog: ViewCatalog, oldIdent), newName, isView @ true) =>
       val newIdent = Spark3Util.catalogAndIdentifier(spark, newName.toList.asJava)
       if (oldCatalog.name != newIdent.catalog().name()) {
         throw new AnalysisException(
@@ -92,8 +116,18 @@ case class MixedFormatExtendedDataSourceV2Strategy(spark: SparkSession) extends 
     case DropIcebergView(ResolvedIdentifier(viewCatalog: ViewCatalog, ident), ifExists) =>
       DropV2ViewExec(viewCatalog, ident, ifExists) :: Nil
 
-    case CreateIcebergView(ResolvedIdentifier(viewCatalog: ViewCatalog, ident), queryText, query,
-    columnAliases, columnComments, queryColumnNames, comment, properties, allowExisting, replace, _) =>
+    case CreateIcebergView(
+          ResolvedIdentifier(viewCatalog: ViewCatalog, ident),
+          queryText,
+          query,
+          columnAliases,
+          columnComments,
+          queryColumnNames,
+          comment,
+          properties,
+          allowExisting,
+          replace,
+          _) =>
       CreateV2ViewExec(
         catalog = viewCatalog,
         ident = ident,
@@ -134,10 +168,6 @@ case class MixedFormatExtendedDataSourceV2Strategy(spark: SparkSession) extends 
       values(index) = exprs(index).eval()
     }
     new GenericInternalRow(values)
-  }
-
-  private def refreshCache(r: DataSourceV2Relation)(): Unit = {
-    spark.sharedState.cacheManager.recacheByPlan(spark, r)
   }
 
   /**

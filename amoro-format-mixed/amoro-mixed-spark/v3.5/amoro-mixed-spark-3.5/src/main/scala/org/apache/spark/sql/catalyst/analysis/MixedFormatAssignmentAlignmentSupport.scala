@@ -19,15 +19,15 @@
 package org.apache.spark.sql.catalyst.analysis
 
 import scala.collection.compat.immutable.ArraySeq
-import scala.collection.mutable
 
 import org.apache.spark.sql.AnalysisException
 import org.apache.spark.sql.amoro.catalyst.AssignmentHelper._
 import org.apache.spark.sql.catalyst.SQLConfHelper
 import org.apache.spark.sql.catalyst.expressions.{Alias, Cast, CreateNamedStruct, Expression, GetStructField, Literal, NamedExpression}
 import org.apache.spark.sql.catalyst.plans.logical.{Assignment, LogicalPlan}
+import org.apache.spark.sql.connector.catalog.CatalogV2Implicits.MultipartIdentifierHelper
 import org.apache.spark.sql.internal.SQLConf.StoreAssignmentPolicy
-import org.apache.spark.sql.types.{DataType, StructField, StructType}
+import org.apache.spark.sql.types.{StructField, StructType}
 
 trait MixedFormatAssignmentAlignmentSupport extends CastSupport {
 
@@ -81,7 +81,7 @@ trait MixedFormatAssignmentAlignmentSupport extends CastSupport {
 
         // if there is an exact match, return the assigned expression
         case Seq(update) if isExactMatch(update, col, resolver) =>
-          castIfNeeded(col, update.expr, resolver)
+          castIfNeeded(col, update.expr, resolver, namePrefix :+ col.name)
 
         // if there are matches only for children
         case updates if !hasExactMatch(updates, col, resolver) =>
@@ -108,7 +108,7 @@ trait MixedFormatAssignmentAlignmentSupport extends CastSupport {
               throw new AnalysisException(
                 "Updating nested fields is only supported for StructType " +
                   s"but $colName is of type $otherType",
-                Map.empty[String,String])
+                Map.empty[String, String])
           }
 
         // if there are conflicting updates, throw an exception
@@ -120,7 +120,7 @@ trait MixedFormatAssignmentAlignmentSupport extends CastSupport {
           throw new AnalysisException(
             "Updates are in conflict for these columns: " +
               conflictingCols.distinct.mkString(", "),
-            Map.empty[String,String])
+            Map.empty[String, String])
       }
     }
   }
@@ -154,7 +154,8 @@ trait MixedFormatAssignmentAlignmentSupport extends CastSupport {
   protected def castIfNeeded(
       tableAttr: NamedExpression,
       expr: Expression,
-      resolver: Resolver): Expression = {
+      resolver: Resolver,
+      colPath: Seq[String]): Expression = {
 
     val storeAssignmentPolicy = conf.storeAssignmentPolicy
 
@@ -164,25 +165,7 @@ trait MixedFormatAssignmentAlignmentSupport extends CastSupport {
         if (expr.nullable && !tableAttr.nullable) {
           throw new AnalysisException(
             s"Cannot write nullable values to non-null column '${tableAttr.name}'",
-            Map.empty[String,String])
-        }
-
-        // use byName = true to catch cases when struct field names don't match
-        // e.g. a struct with fields (a, b) is assigned as a struct with fields (a, c) or (b, a)
-        val errors = new mutable.ArrayBuffer[String]()
-        val canWrite = DataType.canWrite(
-          expr.dataType,
-          tableAttr.dataType,
-          byName = true,
-          resolver,
-          tableAttr.name,
-          storeAssignmentPolicy,
-          err => errors += err)
-
-        if (!canWrite) {
-          throw new AnalysisException(
-            s"Cannot write incompatible data:\n- ${errors.mkString("\n- ")}",
-            Map.empty[String,String])
+            Map.empty[String, String])
         }
 
       case _ => // OK
@@ -192,7 +175,10 @@ trait MixedFormatAssignmentAlignmentSupport extends CastSupport {
       case _ if tableAttr.dataType.sameType(expr.dataType) =>
         expr
       case StoreAssignmentPolicy.ANSI =>
-        AnsiCast(expr, tableAttr.dataType, Option(conf.sessionLocalTimeZone))
+        val cast =
+          Cast(expr, tableAttr.dataType, Option(conf.sessionLocalTimeZone), ansiEnabled = true)
+        cast.setTagValue(Cast.BY_TABLE_INSERTION, ())
+        TableOutputResolver.checkCastOverflowInTableInsert(cast, colPath.quoted)
       case _ =>
         Cast(expr, tableAttr.dataType, Option(conf.sessionLocalTimeZone))
     }

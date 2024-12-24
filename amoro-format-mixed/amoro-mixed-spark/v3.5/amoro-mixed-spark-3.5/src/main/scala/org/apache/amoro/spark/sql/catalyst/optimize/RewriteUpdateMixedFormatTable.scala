@@ -18,13 +18,8 @@
 
 package org.apache.amoro.spark.sql.catalyst.optimize
 
-import org.apache.amoro.spark.sql.MixedFormatExtensionUtils
-import org.apache.amoro.spark.sql.MixedFormatExtensionUtils.{MixedFormatTableHelper, asTableRelation, isMixedFormatRelation}
-import org.apache.amoro.spark.sql.catalyst.plans.MixedFormatRowLevelWrite
-import org.apache.amoro.spark.sql.utils.RowDeltaUtils.{DELETE_OPERATION, INSERT_OPERATION, OPERATION_COLUMN, UPDATE_OPERATION}
-import org.apache.amoro.spark.sql.utils.{MixedFormatRewriteHelper, ProjectingInternalRow, WriteQueryProjections}
-import org.apache.amoro.spark.table.{MixedSparkTable, SupportsExtendIdentColumns, SupportsRowLevelOperator}
-import org.apache.amoro.spark.writer.WriteMode
+import java.util
+
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.amoro.catalyst.MixedFormatSpark35Helper
 import org.apache.spark.sql.catalyst.expressions.{Alias, AttributeReference, Cast, Expression, Literal}
@@ -33,7 +28,13 @@ import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.datasources.v2.{DataSourceV2Relation, DataSourceV2ScanRelation}
 import org.apache.spark.sql.types.StructType
 
-import java.util
+import org.apache.amoro.spark.sql.MixedFormatExtensionUtils
+import org.apache.amoro.spark.sql.MixedFormatExtensionUtils.{asTableRelation, isMixedFormatRelation, MixedFormatTableHelper}
+import org.apache.amoro.spark.sql.catalyst.plans.MixedFormatRowLevelWrite
+import org.apache.amoro.spark.sql.utils.{MixedFormatRewriteHelper, ProjectingInternalRow, WriteQueryProjections}
+import org.apache.amoro.spark.sql.utils.RowDeltaUtils.{DELETE_OPERATION, INSERT_OPERATION, OPERATION_COLUMN, UPDATE_OPERATION}
+import org.apache.amoro.spark.table.{MixedSparkTable, SupportsExtendIdentColumns, SupportsRowLevelOperator}
+import org.apache.amoro.spark.writer.WriteMode
 
 /**
  * rewrite update table plan as append upsert data.

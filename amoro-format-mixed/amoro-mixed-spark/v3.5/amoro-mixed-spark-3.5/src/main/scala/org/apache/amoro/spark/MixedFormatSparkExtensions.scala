@@ -18,15 +18,16 @@
 
 package org.apache.amoro.spark
 
-import org.apache.amoro.spark.sql.catalyst.analysis._
-import org.apache.amoro.spark.sql.catalyst.optimize.{OptimizeWriteRule, RewriteAppendMixedFormatTable, RewriteDeleteFromMixedFormatTable, RewriteUpdateMixedFormatTable}
-import org.apache.amoro.spark.sql.catalyst.parser.MixedFormatSqlExtensionsParser
-import org.apache.amoro.spark.sql.execution
 import org.apache.spark.sql.SparkSessionExtensions
 import org.apache.spark.sql.catalyst.analysis.{CheckViews, ProcedureArgumentCoercion, ResolveProcedures, ResolveViews}
 import org.apache.spark.sql.catalyst.optimizer._
 import org.apache.spark.sql.catalyst.parser.extensions.IcebergSparkSqlExtensionsParser
 import org.apache.spark.sql.execution.datasources.v2.MixedFormatExtendedDataSourceV2Strategy
+
+import org.apache.amoro.spark.sql.catalyst.analysis._
+import org.apache.amoro.spark.sql.catalyst.optimize.{OptimizeWriteRule, RewriteAppendMixedFormatTable, RewriteDeleteFromMixedFormatTable, RewriteUpdateMixedFormatTable}
+import org.apache.amoro.spark.sql.catalyst.parser.MixedFormatSqlExtensionsParser
+import org.apache.amoro.spark.sql.execution
 
 class MixedFormatSparkExtensions extends (SparkSessionExtensions => Unit) {
 

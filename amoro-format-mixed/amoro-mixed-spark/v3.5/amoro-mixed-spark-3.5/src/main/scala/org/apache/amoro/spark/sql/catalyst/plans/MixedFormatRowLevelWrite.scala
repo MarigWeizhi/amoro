@@ -19,7 +19,7 @@
 package org.apache.amoro.spark.sql.catalyst.plans
 
 import org.apache.spark.sql.catalyst.analysis.NamedRelation
-import org.apache.spark.sql.catalyst.plans.logical.{Command, LogicalPlan, V2WriteCommandLike}
+import org.apache.spark.sql.catalyst.plans.logical.{Command, LogicalPlan, V2WriteCommand}
 import org.apache.spark.sql.connector.write.Write
 
 import org.apache.amoro.spark.sql.utils.WriteQueryProjections
@@ -29,14 +29,18 @@ case class MixedFormatRowLevelWrite(
     query: LogicalPlan,
     options: Map[String, String],
     projections: WriteQueryProjections,
-    write: Option[Write] = None) extends V2WriteCommandLike with Command {
+    write: Option[Write] = None) extends V2WriteCommand with Command {
 
   def isByName: Boolean = false
 
   override def outputResolved: Boolean = true
 
-  override protected def withNewChildInternal(newChild: LogicalPlan): MixedFormatRowLevelWrite = {
+  override protected def withNewChildInternal(newChild: LogicalPlan): MixedFormatRowLevelWrite =
     copy(query = newChild)
-  }
 
+  override def withNewQuery(newQuery: LogicalPlan): V2WriteCommand = copy(query = newQuery)
+
+  override def withNewTable(newTable: NamedRelation): V2WriteCommand = copy(table = newTable)
+
+  override def storeAnalyzedQuery(): Command = this
 }

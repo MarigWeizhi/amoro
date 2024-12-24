@@ -18,13 +18,6 @@
 
 package org.apache.amoro.spark.sql.catalyst.analysis
 
-import org.apache.amoro.spark.mixed.MixedSessionCatalogBase
-import org.apache.amoro.spark.sql.MixedFormatExtensionUtils.buildCatalogAndIdentifier
-import org.apache.amoro.spark.sql.catalyst.plans.{AlterMixedFormatTableDropPartition, TruncateMixedFormatTable}
-import org.apache.amoro.spark.table.MixedSparkTable
-import org.apache.amoro.spark.writer.WriteMode
-import org.apache.amoro.spark.{MixedFormatSparkCatalog, MixedFormatSparkSessionCatalog}
-import org.apache.amoro.table.KeyedTable
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.analysis.{ResolvedIdentifier, ResolvedTable}
@@ -32,6 +25,14 @@ import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.connector.catalog.{Identifier, TableCatalog}
 import org.apache.spark.sql.execution.command.CreateTableLikeCommand
+
+import org.apache.amoro.spark.{MixedFormatSparkCatalog, MixedFormatSparkSessionCatalog}
+import org.apache.amoro.spark.mixed.MixedSessionCatalogBase
+import org.apache.amoro.spark.sql.MixedFormatExtensionUtils.buildCatalogAndIdentifier
+import org.apache.amoro.spark.sql.catalyst.plans.{AlterMixedFormatTableDropPartition, TruncateMixedFormatTable}
+import org.apache.amoro.spark.table.MixedSparkTable
+import org.apache.amoro.spark.writer.WriteMode
+import org.apache.amoro.table.KeyedTable
 
 /**
  * Rule for rewrite some spark commands to mixed-format's implementation.
@@ -66,12 +67,13 @@ case class RewriteMixedFormatCommand(sparkSession: SparkSession) extends Rule[Lo
         TruncateMixedFormatTable(t.child)
 
       case c @ CreateTableAsSelect(
-        ResolvedIdentifier(catalog: TableCatalog, _),
+            ResolvedIdentifier(catalog: TableCatalog, _),
             _,
             _,
             tableSpec,
             options,
-            _,_)
+            _,
+            _)
           if isCreateMixedFormatTable(catalog, tableSpec.provider) =>
         var propertiesMap: Map[String, String] = tableSpec.properties
         var optionsMap: Map[String, String] = options
@@ -107,7 +109,7 @@ case class RewriteMixedFormatCommand(sparkSession: SparkSession) extends Rule[Lo
           comment = None,
           serde = None,
           external = false)
-        val identifier = Identifier.of(Array(targetTable.database.get),targetTable.identifier)
+        val identifier = Identifier.of(Array(targetTable.database.get), targetTable.identifier)
         val name = ResolvedIdentifier(targetCatalog, identifier)
         CreateTable(name, table.schema(), table.partitioning(), tableSpec, ifNotExists)
       case _ => plan

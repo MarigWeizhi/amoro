@@ -19,12 +19,13 @@
 package org.apache.spark.sql.amoro.parser
 
 import org.antlr.v4.runtime.ParserRuleContext
-import org.apache.amoro.spark.sql.parser.MixedFormatSqlExtendParser._
 import org.apache.spark.sql.catalyst.parser.ParseException
 import org.apache.spark.sql.catalyst.trees.Origin
 import org.apache.spark.sql.connector.catalog.CatalogV2Implicits._
 import org.apache.spark.sql.errors.QueryErrorsBase
 import org.apache.spark.sql.types.StringType
+
+import org.apache.amoro.spark.sql.parser.MixedFormatSqlExtendParser._
 
 /**
  * Object for grouping all error messages of the query parsing.
@@ -49,8 +50,9 @@ private[sql] object QueryParsingErrors extends QueryErrorsBase {
   def transformNotSupportQuantifierError(ctx: ParserRuleContext): Throwable = {
     new ParseException(
       errorClass = "UNSUPPORTED_FEATURE",
-      messageParameters = Map("UNSUPPORTED_FEATURE" -> (s"${toSQLStmt("TRANSFORM")} does not support" +
-        s" ${toSQLStmt("DISTINCT")}/${toSQLStmt("ALL")} in inputs")),
+      messageParameters =
+        Map("UNSUPPORTED_FEATURE" -> (s"${toSQLStmt("TRANSFORM")} does not support" +
+          s" ${toSQLStmt("DISTINCT")}/${toSQLStmt("ALL")} in inputs")),
       ctx)
   }
 
@@ -69,28 +71,32 @@ private[sql] object QueryParsingErrors extends QueryErrorsBase {
   def lateralJoinWithNaturalJoinUnsupportedError(ctx: ParserRuleContext): Throwable = {
     new ParseException(
       errorClass = "UNSUPPORTED_FEATURE",
-      messageParameters = Map("UNSUPPORTED_FEATURE" -> s"${toSQLStmt("LATERAL")} join with ${toSQLStmt("NATURAL")} join."),
+      messageParameters = Map(
+        "UNSUPPORTED_FEATURE" -> s"${toSQLStmt("LATERAL")} join with ${toSQLStmt("NATURAL")} join."),
       ctx)
   }
 
   def lateralJoinWithUsingJoinUnsupportedError(ctx: ParserRuleContext): Throwable = {
     new ParseException(
       errorClass = "UNSUPPORTED_FEATURE",
-      messageParameters = Map("UNSUPPORTED_FEATURE" -> s"${toSQLStmt("LATERAL")} join with ${toSQLStmt("USING")} join."),
+      messageParameters = Map(
+        "UNSUPPORTED_FEATURE" -> s"${toSQLStmt("LATERAL")} join with ${toSQLStmt("USING")} join."),
       ctx)
   }
 
   def unsupportedLateralJoinTypeError(ctx: ParserRuleContext, joinType: String): Throwable = {
     new ParseException(
       errorClass = "UNSUPPORTED_FEATURE",
-      messageParameters = Map("UNSUPPORTED_FEATURE" -> s"${toSQLStmt("LATERAL")} join type ${toSQLStmt(joinType)}."),
+      messageParameters =
+        Map("UNSUPPORTED_FEATURE" -> s"${toSQLStmt("LATERAL")} join type ${toSQLStmt(joinType)}."),
       ctx)
   }
 
   def invalidLateralJoinRelationError(ctx: RelationPrimaryContext): Throwable = {
     new ParseException(
       errorClass = "INVALID_SQL_SYNTAX",
-      messageParameters = Map("INVALID_SQL_SYNTAX" -> s"${toSQLStmt("LATERAL")} can only be used with subquery."),
+      messageParameters =
+        Map("INVALID_SQL_SYNTAX" -> s"${toSQLStmt("LATERAL")} can only be used with subquery."),
       ctx)
   }
 
@@ -104,7 +110,8 @@ private[sql] object QueryParsingErrors extends QueryErrorsBase {
   def invalidWindowReferenceError(name: String, ctx: WindowClauseContext): Throwable = {
     new ParseException(
       "INVALID_SQL_SYNTAX",
-      Map("INVALID_SQL_SYNTAX" -> s"Window reference ${toSQLId(name)} is not a window specification."),
+      Map(
+        "INVALID_SQL_SYNTAX" -> s"Window reference ${toSQLId(name)} is not a window specification."),
       ctx)
   }
 
@@ -116,7 +123,10 @@ private[sql] object QueryParsingErrors extends QueryErrorsBase {
   }
 
   def naturalCrossJoinUnsupportedError(ctx: RelationContext): Throwable = {
-    new ParseException("UNSUPPORTED_FEATURE", Map("UNSUPPORTED_FEATURE" -> (toSQLStmt("NATURAL CROSS JOIN") + ".")), ctx)
+    new ParseException(
+      "UNSUPPORTED_FEATURE",
+      Map("UNSUPPORTED_FEATURE" -> (toSQLStmt("NATURAL CROSS JOIN") + ".")),
+      ctx)
   }
 
   def emptyInputForTableSampleError(ctx: ParserRuleContext): Throwable = {
@@ -221,7 +231,10 @@ private[sql] object QueryParsingErrors extends QueryErrorsBase {
   }
 
   def charTypeMissingLengthError(dataType: String, ctx: PrimitiveDataTypeContext): Throwable = {
-    new ParseException("PARSE_CHAR_MISSING_LENGTH", Map("PARSE_CHAR_MISSING_LENGTH" -> dataType), ctx)
+    new ParseException(
+      "PARSE_CHAR_MISSING_LENGTH",
+      Map("PARSE_CHAR_MISSING_LENGTH" -> dataType),
+      ctx)
   }
 
   def partitionTransformNotExpectedError(
@@ -234,7 +247,8 @@ private[sql] object QueryParsingErrors extends QueryErrorsBase {
   def tooManyArgumentsForTransformError(name: String, ctx: ApplyTransformContext): Throwable = {
     new ParseException(
       errorClass = "INVALID_SQL_SYNTAX",
-      messageParameters = Map("INVALID_SQL_SYNTAX" -> s"Too many arguments for transform ${toSQLId(name)}"),
+      messageParameters =
+        Map("INVALID_SQL_SYNTAX" -> s"Too many arguments for transform ${toSQLId(name)}"),
       ctx)
   }
 
@@ -337,7 +351,10 @@ private[sql] object QueryParsingErrors extends QueryErrorsBase {
 
   def duplicateKeysError(key: String, ctx: ParserRuleContext): Throwable = {
     // Found duplicate keys '$key'
-    new ParseException(errorClass = "DUPLICATE_KEY", messageParameters = Map("DUPLICATE_KEY" -> toSQLId(key)), ctx)
+    new ParseException(
+      errorClass = "DUPLICATE_KEY",
+      messageParameters = Map("DUPLICATE_KEY" -> toSQLId(key)),
+      ctx)
   }
 
   def unexpectedFomatForSetConfigurationError(ctx: ParserRuleContext): Throwable = {
