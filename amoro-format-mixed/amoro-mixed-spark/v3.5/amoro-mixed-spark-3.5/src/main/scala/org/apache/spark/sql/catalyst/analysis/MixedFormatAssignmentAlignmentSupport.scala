@@ -19,12 +19,14 @@
 package org.apache.spark.sql.catalyst.analysis
 
 import scala.collection.compat.immutable.ArraySeq
+import scala.collection.mutable
 
 import org.apache.spark.sql.AnalysisException
 import org.apache.spark.sql.amoro.catalyst.AssignmentHelper._
 import org.apache.spark.sql.catalyst.SQLConfHelper
 import org.apache.spark.sql.catalyst.expressions.{Alias, Cast, CreateNamedStruct, Expression, GetStructField, Literal, NamedExpression}
 import org.apache.spark.sql.catalyst.plans.logical.{Assignment, LogicalPlan}
+import org.apache.spark.sql.catalyst.types.DataTypeUtils
 import org.apache.spark.sql.connector.catalog.CatalogV2Implicits.MultipartIdentifierHelper
 import org.apache.spark.sql.internal.SQLConf.StoreAssignmentPolicy
 import org.apache.spark.sql.types.{StructField, StructType}
@@ -165,6 +167,25 @@ trait MixedFormatAssignmentAlignmentSupport extends CastSupport {
         if (expr.nullable && !tableAttr.nullable) {
           throw new AnalysisException(
             s"Cannot write nullable values to non-null column '${tableAttr.name}'",
+            Map.empty[String, String])
+        }
+
+        // use byName = true to catch cases when struct field names don't match
+        // e.g. a struct with fields (a, b) is assigned as a struct with fields (a, c) or (b, a)
+        val errors = new mutable.ArrayBuffer[String]()
+        val canWrite = DataTypeUtils.canWrite(
+          "",
+          expr.dataType,
+          tableAttr.dataType,
+          byName = true,
+          resolver,
+          tableAttr.name,
+          storeAssignmentPolicy,
+          err => errors += err)
+
+        if (!canWrite) {
+          throw new AnalysisException(
+            s"Cannot write incompatible data:\n- ${errors.mkString("\n- ")}",
             Map.empty[String, String])
         }
 

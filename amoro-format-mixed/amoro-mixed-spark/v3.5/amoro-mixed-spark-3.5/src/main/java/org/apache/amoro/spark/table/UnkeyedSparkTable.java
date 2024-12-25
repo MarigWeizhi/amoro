@@ -26,7 +26,6 @@ import org.apache.iceberg.spark.SparkSchemaUtil;
 import org.apache.iceberg.spark.source.SparkTable;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.analysis.NoSuchPartitionException;
-import org.apache.spark.sql.catalyst.analysis.PartitionAlreadyExistsException;
 import org.apache.spark.sql.connector.catalog.SupportsPartitionManagement;
 import org.apache.spark.sql.types.StructType;
 
@@ -72,7 +71,7 @@ public class UnkeyedSparkTable extends SparkTable implements SupportsPartitionMa
 
   @Override
   public void createPartition(InternalRow ident, Map<String, String> properties)
-      throws PartitionAlreadyExistsException, UnsupportedOperationException {
+      throws UnsupportedOperationException {
     throw new UnsupportedOperationException("not supported create partition");
   }
 
