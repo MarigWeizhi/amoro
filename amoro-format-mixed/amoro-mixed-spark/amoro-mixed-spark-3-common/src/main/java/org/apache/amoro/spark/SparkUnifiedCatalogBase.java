@@ -173,6 +173,7 @@ public class SparkUnifiedCatalogBase implements TableCatalog, SupportsNamespaces
     throw new UnsupportedOperationException("Cannot apply namespace change");
   }
 
+  @Override
   public boolean dropNamespace(String[] namespace, boolean cascade)
       throws NoSuchNamespaceException {
     String database = namespaceToDatabase(namespace);
@@ -191,7 +192,6 @@ public class SparkUnifiedCatalogBase implements TableCatalog, SupportsNamespaces
     return !unifiedCatalog.databaseExists(database);
   }
 
-  @Override
   public boolean dropNamespace(String[] namespace) throws NoSuchNamespaceException {
     return dropNamespace(namespace, false);
   }

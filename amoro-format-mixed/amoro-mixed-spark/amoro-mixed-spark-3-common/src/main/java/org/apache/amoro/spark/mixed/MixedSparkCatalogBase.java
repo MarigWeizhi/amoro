@@ -144,7 +144,7 @@ public abstract class MixedSparkCatalogBase
   }
 
   @Override
-  public boolean dropNamespace(String[] namespace) {
+  public boolean dropNamespace(String[] namespace, boolean cascade) {
     String database = namespace[0];
     catalog.dropDatabase(database);
     return true;
