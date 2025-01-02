@@ -20,52 +20,26 @@ package org.apache.spark.sql.execution.datasources.v2
 
 import scala.jdk.CollectionConverters._
 
-import org.apache.iceberg.spark.Spark3Util
-import org.apache.iceberg.spark.SparkCatalog
-import org.apache.iceberg.spark.SparkSessionCatalog
-import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.Strategy
+import org.apache.iceberg.spark.{Spark3Util, SparkCatalog, SparkSessionCatalog}
+import org.apache.spark.sql.{AnalysisException, SparkSession, Strategy}
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.Expression
-import org.apache.spark.sql.catalyst.expressions.GenericInternalRow
-import org.apache.spark.sql.catalyst.expressions.Literal
-import org.apache.spark.sql.catalyst.expressions.PredicateHelper
-import org.apache.spark.sql.catalyst.plans.logical.AddPartitionField
-import org.apache.spark.sql.catalyst.plans.logical.Call
-import org.apache.spark.sql.catalyst.plans.logical.CreateOrReplaceBranch
-import org.apache.spark.sql.catalyst.plans.logical.CreateOrReplaceTag
-import org.apache.spark.sql.catalyst.plans.logical.DeleteFromIcebergTable
-import org.apache.spark.sql.catalyst.plans.logical.DropBranch
-import org.apache.spark.sql.catalyst.plans.logical.DropIdentifierFields
-import org.apache.spark.sql.catalyst.plans.logical.DropPartitionField
-import org.apache.spark.sql.catalyst.plans.logical.DropTag
-import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
-import org.apache.spark.sql.catalyst.plans.logical.MergeRows
-import org.apache.spark.sql.catalyst.plans.logical.NoStatsUnaryNode
-import org.apache.spark.sql.catalyst.plans.logical.ReplaceIcebergData
-import org.apache.spark.sql.catalyst.plans.logical.ReplacePartitionField
-import org.apache.spark.sql.catalyst.plans.logical.SetIdentifierFields
-import org.apache.spark.sql.catalyst.plans.logical.SetWriteDistributionAndOrdering
-import org.apache.spark.sql.catalyst.plans.logical.WriteDelta
-import org.apache.spark.sql.connector.catalog.Identifier
-import org.apache.spark.sql.connector.catalog.TableCatalog
-import org.apache.spark.sql.errors.QueryCompilationErrors
-import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.datasources.DataSourceStrategy
+import org.apache.spark.sql.catalyst.analysis.{ResolvedIdentifier, ResolvedNamespace}
+import org.apache.spark.sql.catalyst.expressions.{Expression, GenericInternalRow, PredicateHelper}
+import org.apache.spark.sql.catalyst.plans.logical._
+import org.apache.spark.sql.catalyst.plans.logical.views.{CreateIcebergView, DropIcebergView, ResolvedV2View, ShowIcebergViews}
+import org.apache.spark.sql.connector.catalog.{Identifier, TableCatalog, ViewCatalog}
+import org.apache.spark.sql.execution.{OrderAwareCoalesceExec, SparkPlan}
 
-import org.apache.amoro.UnifiedCatalog
 import org.apache.amoro.spark.{SparkUnifiedCatalog, SparkUnifiedSessionCatalog}
 
 /**
  * refer apache iceberg project
- * spark/v3.3/spark-extensions/src/main/scala/org/apache/spark/sql/execution/
+ * spark/v3.4/spark-extensions/src/main/scala/org/apache/spark/sql/execution/
  * datasources/v2/ExtendedDataSourceV2Strategy.scala
  * @param spark
  */
 case class MixedFormatExtendedDataSourceV2Strategy(spark: SparkSession) extends Strategy
   with PredicateHelper {
-
-  import org.apache.spark.sql.execution.datasources.v2.DataSourceV2Implicits._
 
   override def apply(plan: LogicalPlan): Seq[SparkPlan] = plan match {
     case c @ Call(procedure, args) =>
@@ -132,7 +106,12 @@ case class MixedFormatExtendedDataSourceV2Strategy(spark: SparkSession) extends 
       // refresh the cache using the original relation
       ReplaceDataExec(planLater(query), refreshCache(r), write) :: Nil
 
-    case WriteDelta(_: DataSourceV2Relation, query, r: DataSourceV2Relation, projs, Some(write)) =>
+    case WriteIcebergDelta(
+          _: DataSourceV2Relation,
+          query,
+          r: DataSourceV2Relation,
+          projs,
+          Some(write)) =>
       // refresh the cache using the original relation
       WriteDeltaExec(planLater(query), refreshCache(r), projs, write) :: Nil
 
@@ -161,22 +140,68 @@ case class MixedFormatExtendedDataSourceV2Strategy(spark: SparkSession) extends 
         output,
         planLater(child)) :: Nil
 
-    case DeleteFromIcebergTable(DataSourceV2ScanRelation(r, _, output, _), condition, None) =>
-      // the optimizer has already checked that this delete can be handled using a metadata operation
-      val deleteCond = condition.getOrElse(Literal.TrueLiteral)
-      val predicates = splitConjunctivePredicates(deleteCond)
-      val normalizedPredicates = DataSourceStrategy.normalizeExprs(predicates, output)
-      val filters = normalizedPredicates.flatMap { pred =>
-        val filter = DataSourceStrategy.translateFilter(pred, supportNestedPredicatePushdown = true)
-        if (filter.isEmpty) {
-          throw QueryCompilationErrors.cannotTranslateExpressionToSourceFilterError(pred)
-        }
-        filter
-      }.toArray
-      DeleteFromTableExec(r.table.asDeletable, filters, refreshCache(r)) :: Nil
+    case UpdateRows(deleteOutput, insertOutput, output, child) =>
+      UpdateRowsExec(deleteOutput, insertOutput, output, planLater(child)) :: Nil
 
     case NoStatsUnaryNode(child) =>
       planLater(child) :: Nil
+
+    case OrderAwareCoalesce(numPartitions, coalescer, child) =>
+      OrderAwareCoalesceExec(numPartitions, coalescer, planLater(child)) :: Nil
+
+    case RenameTable(ResolvedV2View(oldCatalog: ViewCatalog, oldIdent), newName, isView @ true) =>
+      val newIdent = Spark3Util.catalogAndIdentifier(spark, newName.toList.asJava)
+      if (oldCatalog.name != newIdent.catalog().name()) {
+        throw new AnalysisException(
+          s"Cannot move view between catalogs: from=${oldCatalog.name} and to=${newIdent.catalog().name()}")
+      }
+      RenameV2ViewExec(oldCatalog, oldIdent, newIdent.identifier()) :: Nil
+
+    case DropIcebergView(ResolvedIdentifier(viewCatalog: ViewCatalog, ident), ifExists) =>
+      DropV2ViewExec(viewCatalog, ident, ifExists) :: Nil
+
+    case CreateIcebergView(
+          ResolvedIdentifier(viewCatalog: ViewCatalog, ident),
+          queryText,
+          query,
+          columnAliases,
+          columnComments,
+          queryColumnNames,
+          comment,
+          properties,
+          allowExisting,
+          replace,
+          _) =>
+      CreateV2ViewExec(
+        catalog = viewCatalog,
+        ident = ident,
+        queryText = queryText,
+        columnAliases = columnAliases,
+        columnComments = columnComments,
+        queryColumnNames = queryColumnNames,
+        viewSchema = query.schema,
+        comment = comment,
+        properties = properties,
+        allowExisting = allowExisting,
+        replace = replace) :: Nil
+
+    case DescribeRelation(ResolvedV2View(catalog, ident), _, isExtended, output) =>
+      DescribeV2ViewExec(output, catalog.loadView(ident), isExtended) :: Nil
+
+    case ShowTableProperties(ResolvedV2View(catalog, ident), propertyKey, output) =>
+      ShowV2ViewPropertiesExec(output, catalog.loadView(ident), propertyKey) :: Nil
+
+    case ShowIcebergViews(ResolvedNamespace(catalog: ViewCatalog, namespace), pattern, output) =>
+      ShowV2ViewsExec(output, catalog, namespace, pattern) :: Nil
+
+    case ShowCreateTable(ResolvedV2View(catalog, ident), _, output) =>
+      ShowCreateV2ViewExec(output, catalog.loadView(ident)) :: Nil
+
+    case SetViewProperties(ResolvedV2View(catalog, ident), properties) =>
+      AlterV2ViewSetPropertiesExec(catalog, ident, properties) :: Nil
+
+    case UnsetViewProperties(ResolvedV2View(catalog, ident), propertyKeys, ifExists) =>
+      AlterV2ViewUnsetPropertiesExec(catalog, ident, propertyKeys, ifExists) :: Nil
 
     case _ => Nil
   }

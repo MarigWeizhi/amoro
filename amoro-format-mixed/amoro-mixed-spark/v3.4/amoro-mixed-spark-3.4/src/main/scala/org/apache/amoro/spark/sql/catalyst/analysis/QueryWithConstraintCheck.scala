@@ -19,13 +19,13 @@
 package org.apache.amoro.spark.sql.catalyst.analysis
 
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.catalyst.analysis.ResolvedDBObjectName
+import org.apache.spark.sql.catalyst.analysis.ResolvedIdentifier
 import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, EqualNullSafe, Expression, GreaterThan, Literal}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Complete, Count}
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.connector.catalog.CatalogPlugin
-import org.apache.spark.sql.execution.datasources.DataSourceAnalysis.resolver
+import org.apache.spark.sql.execution.datasources.DataSourceAnalysis
 import org.apache.spark.sql.execution.datasources.v2.DataSourceV2Relation
 
 import org.apache.amoro.spark.{MixedFormatSparkCatalog, MixedFormatSparkSessionCatalog}
@@ -37,7 +37,7 @@ import org.apache.amoro.spark.table.MixedSparkTable
 case class QueryWithConstraintCheck(spark: SparkSession) extends Rule[LogicalPlan] {
 
   override def apply(plan: LogicalPlan): LogicalPlan = plan resolveOperatorsUp {
-    case a @ AppendData(r: DataSourceV2Relation, query, _, _, _)
+    case a @ AppendData(r: DataSourceV2Relation, query, _, _, _, _)
         if checkDuplicatesEnabled() && isKeyedRelation(r) =>
       val validateQuery = buildValidatePrimaryKeyDuplication(r, query)
       val checkDataQuery = QueryWithConstraintCheckPlan(query, validateQuery)
@@ -49,7 +49,7 @@ case class QueryWithConstraintCheck(spark: SparkSession) extends Rule[LogicalPla
       val checkDataQuery = QueryWithConstraintCheckPlan(query, validateQuery)
       a.copy(query = checkDataQuery)
 
-    case a @ OverwriteByExpression(r: DataSourceV2Relation, deleteExpr, query, _, _, _)
+    case a @ OverwriteByExpression(r: DataSourceV2Relation, deleteExpr, query, _, _, _, _)
         if checkDuplicatesEnabled() && isKeyedRelation(r) =>
       val validateQuery = buildValidatePrimaryKeyDuplication(r, query)
       var finalExpr: Expression = deleteExpr
@@ -61,7 +61,7 @@ case class QueryWithConstraintCheck(spark: SparkSession) extends Rule[LogicalPla
       val checkDataQuery = QueryWithConstraintCheckPlan(query, validateQuery)
       a.copy(query = checkDataQuery)
 
-    case c @ CreateTableAsSelect(ResolvedDBObjectName(catalog, _), _, query, tableSpec, _, _)
+    case c @ CreateTableAsSelect(ResolvedIdentifier(catalog, _), _, query, tableSpec, _, _, _)
         if checkDuplicatesEnabled() && isCreateKeyedTable(catalog, tableSpec) =>
       val primaries = tableSpec.properties("primary.keys").split(",")
       val validateQuery = buildValidatePrimaryKeyDuplicationByPrimaries(primaries, query)
@@ -123,6 +123,7 @@ case class QueryWithConstraintCheck(spark: SparkSession) extends Rule[LogicalPla
   }
 
   protected def findOutputAttr(attrs: Seq[Attribute], attrName: String): Attribute = {
+    val resolver = DataSourceAnalysis.apply(spark.sessionState.analyzer).resolver
     attrs.find(attr => resolver(attr.name, attrName)).getOrElse {
       throw new UnsupportedOperationException(s"Cannot find $attrName in $attrs")
     }

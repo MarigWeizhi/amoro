@@ -20,22 +20,23 @@ package org.apache.spark.sql.amoro.catalyst
 
 import java.util.UUID
 
+import org.apache.iceberg.Schema
+import org.apache.iceberg.spark.SparkSchemaUtil
+import org.apache.spark.sql.{catalyst, connector, AnalysisException}
+import org.apache.spark.sql.catalyst.{InternalRow, SQLConfHelper}
+import org.apache.spark.sql.catalyst.expressions.{Expression, IcebergBucketTransform, IcebergDayTransform, IcebergHourTransform, IcebergMonthTransform, IcebergYearTransform, NamedExpression, NullIntolerant}
+import org.apache.spark.sql.catalyst.expressions.codegen.CodegenFallback
+import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
+import org.apache.spark.sql.connector.catalog.Table
+import org.apache.spark.sql.connector.expressions._
+import org.apache.spark.sql.connector.write.{LogicalWriteInfoImpl, WriteBuilder}
+import org.apache.spark.sql.types.{DataType, LongType, StructType}
+
 import org.apache.amoro.data.PrimaryKeyData
 import org.apache.amoro.spark.SparkInternalRowWrapper
 import org.apache.amoro.spark.sql.connector.expressions.FileIndexBucket
-import org.apache.iceberg.Schema
-import org.apache.iceberg.spark.SparkSchemaUtil
-import org.apache.spark.sql.catalyst.expressions.codegen.CodegenFallback
-import org.apache.spark.sql.catalyst.expressions.{Expression, NamedExpression, NullIntolerant}
-import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
-import org.apache.spark.sql.catalyst.{InternalRow, SQLConfHelper}
-import org.apache.spark.sql.connector.catalog.Table
-import org.apache.spark.sql.connector.expressions._
-import org.apache.spark.sql.connector.write.WriteBuilder
-import org.apache.spark.sql.types.{DataType, LongType, StructType}
-import org.apache.spark.sql.{AnalysisException, catalyst, connector}
-
 object MixedFormatSpark34Helper extends SQLConfHelper {
+  import java.util.Optional
 
   import org.apache.spark.sql.execution.datasources.v2.DataSourceV2Implicits._
 
@@ -68,8 +69,6 @@ object MixedFormatSpark34Helper extends SQLConfHelper {
         IcebergHourTransform(resolve(ht.ref.fieldNames))
       case ref: FieldReference =>
         resolve(ref.fieldNames)
-      case TruncateTransform(n, ref) =>
-        IcebergTruncateTransform(resolve(ref.fieldNames), width = n)
       case sort: SortOrder =>
         val catalystChild = toCatalyst(sort.expression(), query)
         catalyst.expressions.SortOrder(
@@ -150,12 +149,12 @@ object MixedFormatSpark34Helper extends SQLConfHelper {
       writeOptions: Map[String, String],
       rowIdSchema: StructType = null,
       metadataSchema: StructType = null): WriteBuilder = {
-    val info = ExtendedLogicalWriteInfoImpl(
+    val info = LogicalWriteInfoImpl(
       queryId = UUID.randomUUID().toString,
       rowSchema,
       writeOptions.asOptions,
-      rowIdSchema,
-      metadataSchema)
+      Optional.of(rowIdSchema),
+      Optional.of(metadataSchema))
     table.asWritable.newWriteBuilder(info)
   }
 }

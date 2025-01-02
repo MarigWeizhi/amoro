@@ -28,7 +28,6 @@ import org.apache.spark.sql.execution.datasources.v2.DataSourceV2Relation
 import org.apache.amoro.spark.SupportSparkAdapter
 import org.apache.amoro.spark.mixed.SparkSQLProperties
 import org.apache.amoro.spark.sql.MixedFormatExtensionUtils.{isMixedFormatRelation, isUnkeyedRelation}
-import org.apache.amoro.spark.sql.catalyst.plans.MixedFormatRowLevelWrite
 import org.apache.amoro.spark.table.{MixedSparkTable, UnkeyedSparkTable}
 import org.apache.amoro.spark.util.DistributionAndOrderingUtil
 
@@ -52,24 +51,24 @@ case class OptimizeWriteRule(spark: SparkSession) extends Rule[LogicalPlan]
       val options = writeOptions + ("writer.distributed-and-ordered" -> "true")
       o.copy(query = newQuery, writeOptions = options)
 
-    case o @ OverwriteByExpression(r: DataSourceV2Relation, _, query, writeOptions, _, _)
+    case o @ OverwriteByExpression(r: DataSourceV2Relation, _, query, writeOptions, _, _, _)
         if isMixedFormatRelation(r) =>
       val newQuery = distributionQuery(query, r.table, rowLevelOperation = false)
       val options = writeOptions + ("writer.distributed-and-ordered" -> "true")
       o.copy(query = newQuery, writeOptions = options)
 
-    case a @ AppendData(r: DataSourceV2Relation, query, writeOptions, _, _)
+    case a @ AppendData(r: DataSourceV2Relation, query, writeOptions, _, _, _)
         if isMixedFormatRelation(r) =>
       val newQuery = distributionQuery(query, r.table, rowLevelOperation = false)
       val options = writeOptions + ("writer.distributed-and-ordered" -> "true")
       a.copy(query = newQuery, writeOptions = options)
 
-    case a @ AppendData(r: DataSourceV2Relation, query, _, _, _)
+    case a @ AppendData(r: DataSourceV2Relation, query, _, _, _, _)
         if isUnkeyedRelation(r) =>
       val newQuery = distributionQuery(query, r.table, rowLevelOperation = false)
       a.copy(query = newQuery)
 
-    case o @ OverwriteByExpression(r: DataSourceV2Relation, _, query, _, _, _)
+    case o @ OverwriteByExpression(r: DataSourceV2Relation, _, query, _, _, _, _)
         if isUnkeyedRelation(r) =>
       val newQuery = distributionQuery(query, r.table, rowLevelOperation = false)
       o.copy(query = newQuery)

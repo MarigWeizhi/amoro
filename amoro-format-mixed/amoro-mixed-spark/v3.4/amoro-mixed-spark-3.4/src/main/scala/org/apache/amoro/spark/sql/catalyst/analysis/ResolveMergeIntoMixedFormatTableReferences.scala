@@ -60,7 +60,8 @@ case class ResolveMergeIntoMixedFormatTableReferences(spark: SparkSession)
           source,
           cond,
           matchedActions,
-          notMatchedActions) =>
+          notMatchedActions,
+          notMatchedBySourceActions) =>
       checkConditionIsPrimaryKey(aliasedTable, cond)
 
       val resolvedMatchedActions = matchedActions.map {
@@ -274,7 +275,9 @@ case class ResolveMergeIntoMixedFormatTableReferences(spark: SparkSession)
       // Note: This will throw error only on unresolved attribute issues,
       // not other resolution errors like mismatched data types.
       val cols = p.inputSet.toSeq.map(_.sql).mkString(", ")
-      a.failAnalysis(s"cannot resolve ${a.sql} in MERGE command given columns [$cols]")
+      a.failAnalysis(
+        s"cannot resolve ${a.sql} in MERGE command given columns [$cols]",
+        Map.empty[String, String])
     }
     resolved
   }

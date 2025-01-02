@@ -19,16 +19,13 @@
 package org.apache.amoro.spark
 
 import org.apache.spark.sql.SparkSessionExtensions
-import org.apache.spark.sql.catalyst.analysis.{AlignedRowLevelIcebergCommandCheck, AlignRowLevelCommandAssignments, CheckMergeIntoTableConditions, MergeIntoIcebergTableResolutionCheck, ProcedureArgumentCoercion, ResolveMergeIntoTableReferences, ResolveProcedures, RewriteDeleteFromIcebergTable, RewriteMergeIntoTable, RewriteUpdateTable}
+import org.apache.spark.sql.catalyst.analysis.{AlignedRowLevelIcebergCommandCheck, AlignRowLevelCommandAssignments, CheckMergeIntoTableConditions, MergeIntoIcebergTableResolutionCheck, ProcedureArgumentCoercion, ResolveMergeIntoTableReferences, ResolveProcedures, RewriteMergeIntoTable, RewriteUpdateTable}
 import org.apache.spark.sql.catalyst.optimizer._
 import org.apache.spark.sql.catalyst.parser.extensions.IcebergSparkSqlExtensionsParser
-import org.apache.spark.sql.execution.datasources.v2.{ExtendedV2Writes, OptimizeMetadataOnlyDeleteFromIcebergTable, ReplaceRewrittenRowLevelCommand, RowLevelCommandScanRelationPushDown}
-import org.apache.spark.sql.execution.datasources.v2.{MixedFormatExtendedDataSourceV2Strategy, ReplaceRewrittenRowLevelCommand}
+import org.apache.spark.sql.execution.datasources.v2.{ExtendedV2Writes, MixedFormatExtendedDataSourceV2Strategy, ReplaceRewrittenRowLevelCommand, RowLevelCommandScanRelationPushDown}
 import org.apache.spark.sql.execution.dynamicpruning.RowLevelCommandDynamicPruning
 
-import org.apache.amoro.spark.sql.catalyst.analysis
-import org.apache.amoro.spark.sql.catalyst.analysis.{MixedFormatAlignRowLevelCommandAssignments, QueryWithConstraintCheck}
-import org.apache.amoro.spark.sql.catalyst.analysis.{QueryWithConstraintCheck, ResolveMergeIntoMixedFormatTableReferences, ResolveMixedFormatCommand, RewriteMixedFormatCommand, RewriteMixedFormatMergeIntoTable}
+import org.apache.amoro.spark.sql.catalyst.analysis._
 import org.apache.amoro.spark.sql.catalyst.optimize.{OptimizeWriteRule, RewriteAppendMixedFormatTable, RewriteDeleteFromMixedFormatTable, RewriteUpdateMixedFormatTable}
 import org.apache.amoro.spark.sql.catalyst.parser.MixedFormatSqlExtensionsParser
 import org.apache.amoro.spark.sql.execution
@@ -58,7 +55,6 @@ class MixedFormatSparkExtensions extends (SparkSessionExtensions => Unit) {
     extensions.injectResolutionRule { _ => CheckMergeIntoTableConditions }
     extensions.injectResolutionRule { _ => ProcedureArgumentCoercion }
     extensions.injectResolutionRule { _ => AlignRowLevelCommandAssignments }
-    extensions.injectResolutionRule { _ => RewriteDeleteFromIcebergTable }
     extensions.injectResolutionRule { _ => RewriteUpdateTable }
     extensions.injectResolutionRule { _ => RewriteMergeIntoTable }
     extensions.injectCheckRule { _ => MergeIntoIcebergTableResolutionCheck }
@@ -71,7 +67,6 @@ class MixedFormatSparkExtensions extends (SparkSessionExtensions => Unit) {
     // - metadata deletes have to be attempted immediately after the operator optimization
     // - dynamic filters should be added before replacing commands with rewrite plans
     // - scans must be planned before building writes
-    extensions.injectPreCBORule { _ => OptimizeMetadataOnlyDeleteFromIcebergTable }
     extensions.injectPreCBORule { _ => RowLevelCommandScanRelationPushDown }
     extensions.injectPreCBORule { _ => ExtendedV2Writes }
     extensions.injectPreCBORule { spark => RowLevelCommandDynamicPruning(spark) }
