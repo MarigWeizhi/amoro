@@ -67,6 +67,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -203,7 +204,12 @@ public class TestMixedWriter extends MixedTableTestBase {
   private void testWriteData(MixedTable table, Map<String, String> map) throws IOException {
     StructType structType = SparkSchemaUtil.convert(table.schema());
     LogicalWriteInfoImpl info =
-        new LogicalWriteInfoImpl("queryId", structType, new CaseInsensitiveStringMap(map));
+        new LogicalWriteInfoImpl(
+            "queryId",
+            structType,
+            new CaseInsensitiveStringMap(map),
+            Optional.empty(),
+            Optional.empty());
     MixedFormatSparkWriteBuilder builder = new MixedFormatSparkWriteBuilder(table, info, catalog());
     Write write = builder.build();
     DataWriter<InternalRow> writer =
