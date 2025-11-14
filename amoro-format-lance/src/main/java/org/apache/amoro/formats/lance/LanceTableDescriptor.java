@@ -53,10 +53,10 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 
-/** Descriptor for Paimon format tables. */
+/** Descriptor for Lance format tables. */
 public class LanceTableDescriptor implements FormatTableDescriptor {
 
-  public static final String PAIMON_MAIN_BRANCH_NAME = "main";
+  public static final String LANCE_MAIN_BRANCH_NAME = "main";
 
   private ExecutorService executor;
 
@@ -112,14 +112,14 @@ public class LanceTableDescriptor implements FormatTableDescriptor {
 
       tableSummary =
           new TableSummary(
-              fileCount, totalSize, averageFileSize, snapshotsOfTable.getRecords(), "paimon");
+              fileCount, totalSize, averageFileSize, snapshotsOfTable.getRecords(), "lance");
 
       baseMetric.put("totalSize", totalSize);
       baseMetric.put("fileCount", fileCount);
       baseMetric.put("averageFileSize", averageFileSize);
       baseMetric.put("lastCommitTime", version.getDataTime().toInstant().toEpochMilli());
     } else {
-      tableSummary = new TableSummary(0, "0", "0", 0, "paimon");
+      tableSummary = new TableSummary(0, "0", "0", 0, "lance");
 
       baseMetric.put("totalSize", 0);
       baseMetric.put("fileCount", 0);

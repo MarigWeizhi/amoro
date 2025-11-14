@@ -35,12 +35,6 @@ public class LanceCatalogFactory implements FormatCatalogFactory {
 
   private static final Logger LOG = LoggerFactory.getLogger(LanceCatalogFactory.class);
 
-  public static final String PAIMON_S3_ACCESS_KEY = "s3.access-key";
-  public static final String PAIMON_S3_SECRET_KEY = "s3.secret-key";
-  public static final String PAIMON_OSS_ACCESS_KEY = "fs.oss.accessKeyId";
-  public static final String PAIMON_OSS_SECRET_KEY = "fs.oss.accessKeySecret";
-  public static final String PAIMON_OSS_ENDPOINT = "fs.oss.endpoint";
-
   @Override
   public LanceCatalog create(
       String name, String metastoreType, Map<String, String> properties, TableMetaStore metaStore) {
